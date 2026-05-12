@@ -25,10 +25,13 @@ scripts/bootstrap-backend.sh -s tfstate20250511
 
 # 4. Deploy landing zone (configure subscription IDs in terraform.tfvars - leave empty to skip components)
 cd infra/terraform
+az login
 terraform init -upgrade
 terraform plan -out=tfplan
 terraform apply tfplan
 
+
+For CI/CD with workload identity, run `terraform init -upgrade -backend-config="use_oidc=true"`.
 # 5. View outputs
 terraform output
 terraform output hub_vnet_id

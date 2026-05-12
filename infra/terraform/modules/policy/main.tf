@@ -13,12 +13,20 @@ locals {
   # Built-in policy definition IDs
   policy_ids = {
     mcsb                 = "/providers/Microsoft.Authorization/policySetDefinitions/1f3afdf9-d0c9-4c3d-847f-89da613e70a8"
+    private_link_usage   = "/providers/Microsoft.Authorization/policySetDefinitions/7379ef4c-89b0-48b6-a5cc-fd3a75eaef93"
     allowed_locations    = "/providers/Microsoft.Authorization/policyDefinitions/e56962a6-4747-49cd-b67b-bf8b01975c4c"
     allowed_locations_rg = "/providers/Microsoft.Authorization/policyDefinitions/e765b5de-1225-4ba3-bd56-1ac6695af988"
     require_tag_rg       = "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025"
     inherit_tag          = "/providers/Microsoft.Authorization/policyDefinitions/cd3aa116-8754-49c9-a813-ad46512ece54"
     activity_log_diag    = "/providers/Microsoft.Authorization/policyDefinitions/2465583e-4e78-4c15-b6be-a36cbc7c8b0f"
   }
+}
+
+locals {
+  landing_zone_subscription_scopes = toset([
+    for subscription_id in var.landing_zone_subscription_ids :
+    "/subscriptions/${subscription_id}"
+  ])
 }
 
 # ==============================================================================
@@ -154,6 +162,20 @@ resource "azurerm_management_group_policy_assignment" "activity_log_diag" {
   parameters = jsonencode({
     logAnalytics = { value = var.log_analytics_workspace_id }
   })
+}
+
+# ==============================================================================
+# Built-in initiative for private endpoint governance at landing-zone scope
+# ==============================================================================
+
+resource "azurerm_subscription_policy_assignment" "private_link_usage" {
+  for_each             = local.landing_zone_subscription_scopes
+  name                 = "private-link-usage-evaluation"
+  display_name         = "Evaluate Private Link Usage Across All Supported Azure Resources"
+  description          = "Built-in initiative assigned to landing-zone subscriptions for private endpoint governance coverage."
+  subscription_id      = each.value
+  policy_definition_id = local.policy_ids.private_link_usage
+  enforce              = true
 }
 
 # ==============================================================================

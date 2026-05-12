@@ -27,12 +27,25 @@ terraform {
   # Remote backend for shared state. Required for CI/CD.
   # Run ./scripts/bootstrap-backend.sh -s <storage-account-name> to create the storage account.
   # For local dev without backend, run: terraform init -backend=false
+  # Local interactive use should rely on Azure CLI auth. CI can enable workload identity
+  # with: terraform init -backend-config="use_oidc=true" ...
   backend "azurerm" {
     resource_group_name  = "rg-terraform-state"
     storage_account_name = "tfstate20250511"
     container_name       = "tfstate"
     key                  = "landing-zone.tfstate"
-    use_oidc             = true
+  }
+}
+
+provider "azurerm" {
+  features {
+    resource_group {
+      prevent_deletion_if_contains_resources = true
+    }
+    key_vault {
+      purge_soft_delete_on_destroy    = false
+      recover_soft_deleted_key_vaults = true
+    }
   }
 }
 
@@ -174,9 +187,6 @@ module "networking" {
   prefix                     = local.prefix
   hub_address_space          = var.hub_address_space != "" ? var.hub_address_space : "10.0.0.0/16"
   app_subnet_delegation      = var.app_subnet_delegation
-  enable_avnm                = var.enable_avnm
-  avnm_management_group_name = var.avnm_management_group_name
-  avnm_spoke_vnet_ids        = var.avnm_spoke_vnet_ids
   tags                       = local.tags
 
   depends_on = [
@@ -210,6 +220,10 @@ module "policy" {
   allowed_locations          = local.allowed_locations
   log_analytics_workspace_id = module.log_analytics[0].workspace_id
   management_group_name      = var.policy_management_group_name
+  landing_zone_subscription_ids = compact([
+    var.prod_subscription_id,
+    var.devtest_subscription_id,
+  ])
 }
 
 # ==============================================================================
@@ -258,6 +272,7 @@ resource "azurerm_monitor_diagnostic_setting" "activity_log" {
 
 resource "azurerm_consumption_budget_subscription" "monthly" {
   count           = var.management_subscription_id != "" ? 1 : 0
+  provider        = azurerm.management
   name            = "budget-${local.prefix}-monthly"
   subscription_id = "/subscriptions/${var.management_subscription_id}"
   amount          = var.monthly_budget_amount

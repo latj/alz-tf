@@ -97,6 +97,9 @@ This script:
 ```bash
 cd infra/terraform
 
+# Authenticate locally before initializing the remote backend
+az login
+
 # Initialize with remote backend
 terraform init \
   -backend-config="storage_account_name=tfstate20250511" \
@@ -104,6 +107,8 @@ terraform init \
   -backend-config="key=landing-zone.tfstate" \
   -backend-config="resource_group_name=rg-terraform-state"
 
+
+For CI/CD with workload identity federation, add `-backend-config="use_oidc=true"` to the same `terraform init` command.
 # Plan deployment
 terraform plan -out=tfplan
 

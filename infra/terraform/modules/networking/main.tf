@@ -14,21 +14,17 @@ locals {
 
   # Common private DNS zones for private endpoints
   private_dns_zones = [
+    "privatelink.azconfig.io",
+    "privatelink.azure-api.net",
+    format("privatelink.%s.azurecontainerapps.io", var.location),
+    "privatelink.azurecr.io",
     "privatelink.blob.core.windows.net",
-    "privatelink.file.core.windows.net",
-    "privatelink.queue.core.windows.net",
-    "privatelink.table.core.windows.net",
+    "privatelink.documents.azure.com",
+    "privatelink.search.windows.net",
     "privatelink.vaultcore.azure.net",
-    "privatelink.database.windows.net",
-    "privatelink.postgres.database.azure.com",
-    "privatelink.mysql.database.azure.com",
-    "privatelink.redis.cache.windows.net",
-    "privatelink.servicebus.windows.net",
-    "privatelink.eventhub.windows.net",
-    "privatelink.webpubsub.azure.com",
-    "privatelink.azurewebsites.net",
-    "privatelink.api.azureml.ms",
-    "privatelink.notebooks.azure.net"
+    "privatelink.services.ai.azure.com",
+    "privatelink.cognitiveservices.azure.com",
+    "privatelink.openai.azure.com"
   ]
 }
 
@@ -256,171 +252,5 @@ resource "azurerm_private_dns_zone_virtual_network_link" "hub" {
   registration_enabled  = false
   resolution_policy     = "NxDomainRedirect"
   tags                  = var.tags
-}
-
-# ==============================================================================
-# Azure Virtual Network Manager (AVNM)
-# ==============================================================================
-
-locals {
-  avnm_management_group_id = "/providers/Microsoft.Management/managementGroups/${var.avnm_management_group_name}"
-}
-
-resource "azurerm_network_manager" "this" {
-  count               = var.enable_avnm ? 1 : 0
-  name                = "nm-${var.prefix}"
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  scope_accesses      = ["Connectivity", "SecurityAdmin", "Routing"]
-  tags                = var.tags
-
-  scope {
-    management_group_ids = [local.avnm_management_group_id]
-  }
-}
-
-resource "azurerm_network_manager_management_group_connection" "this" {
-  count               = var.enable_avnm ? 1 : 0
-  name                = "nm-mg-${var.prefix}"
-  network_manager_id  = azurerm_network_manager.this[0].id
-  management_group_id = local.avnm_management_group_id
-  description         = "Scope AVNM over landing zones management group"
-}
-
-resource "azurerm_network_manager_network_group" "hub" {
-  count              = var.enable_avnm ? 1 : 0
-  name               = "ng-${var.prefix}-hub"
-  network_manager_id = azurerm_network_manager.this[0].id
-  description        = "Hub VNet group"
-}
-
-resource "azurerm_network_manager_network_group" "spokes" {
-  count              = var.enable_avnm ? 1 : 0
-  name               = "ng-${var.prefix}-spokes"
-  network_manager_id = azurerm_network_manager.this[0].id
-  description        = "Spoke VNets group"
-}
-
-resource "azurerm_network_manager_static_member" "hub" {
-  count                     = var.enable_avnm ? 1 : 0
-  name                      = "member-${var.prefix}-hub"
-  network_group_id          = azurerm_network_manager_network_group.hub[0].id
-  target_virtual_network_id = azurerm_virtual_network.hub.id
-}
-
-resource "azurerm_network_manager_static_member" "spokes" {
-  for_each                  = var.enable_avnm ? { for id in var.avnm_spoke_vnet_ids : id => id } : {}
-  name                      = "member-${substr(md5(each.value), 0, 12)}"
-  network_group_id          = azurerm_network_manager_network_group.spokes[0].id
-  target_virtual_network_id = each.value
-}
-
-resource "azurerm_network_manager_connectivity_configuration" "hub_spoke" {
-  count                 = var.enable_avnm ? 1 : 0
-  name                  = "cc-${var.prefix}-hub-spoke"
-  network_manager_id    = azurerm_network_manager.this[0].id
-  connectivity_topology = "HubAndSpoke"
-
-  hub {
-    resource_id   = azurerm_virtual_network.hub.id
-    resource_type = "Microsoft.Network/virtualNetworks"
-  }
-
-  applies_to_group {
-    network_group_id   = azurerm_network_manager_network_group.spokes[0].id
-    group_connectivity = "DirectlyConnected"
-    use_hub_gateway    = false
-  }
-}
-
-resource "azurerm_network_manager_security_admin_configuration" "alz" {
-  count              = var.enable_avnm ? 1 : 0
-  name               = "sac-${var.prefix}-alz"
-  network_manager_id = azurerm_network_manager.this[0].id
-  description        = "ALZ security admin guardrails"
-}
-
-resource "azurerm_network_manager_admin_rule_collection" "guardrails" {
-  count                           = var.enable_avnm ? 1 : 0
-  name                            = "arc-${var.prefix}-guardrails"
-  security_admin_configuration_id = azurerm_network_manager_security_admin_configuration.alz[0].id
-  network_group_ids               = [azurerm_network_manager_network_group.hub[0].id, azurerm_network_manager_network_group.spokes[0].id]
-  description                     = "Global guardrail rules enforced before NSGs"
-}
-
-resource "azurerm_network_manager_admin_rule" "deny_rdp_inbound" {
-  count                    = var.enable_avnm ? 1 : 0
-  name                     = "deny-rdp-inbound"
-  admin_rule_collection_id = azurerm_network_manager_admin_rule_collection.guardrails[0].id
-  action                   = "Deny"
-  direction                = "Inbound"
-  priority                 = 100
-  protocol                 = "Tcp"
-  source_port_ranges       = ["*"]
-  destination_port_ranges  = ["3389"]
-
-  source {
-    address_prefix_type = "IPPrefix"
-    address_prefix      = "*"
-  }
-
-  destination {
-    address_prefix_type = "IPPrefix"
-    address_prefix      = "*"
-  }
-}
-
-resource "azurerm_network_manager_admin_rule" "deny_ssh_inbound" {
-  count                    = var.enable_avnm ? 1 : 0
-  name                     = "deny-ssh-inbound"
-  admin_rule_collection_id = azurerm_network_manager_admin_rule_collection.guardrails[0].id
-  action                   = "Deny"
-  direction                = "Inbound"
-  priority                 = 110
-  protocol                 = "Tcp"
-  source_port_ranges       = ["*"]
-  destination_port_ranges  = ["22"]
-
-  source {
-    address_prefix_type = "IPPrefix"
-    address_prefix      = "*"
-  }
-
-  destination {
-    address_prefix_type = "IPPrefix"
-    address_prefix      = "*"
-  }
-}
-
-resource "azurerm_network_manager_routing_configuration" "spokes" {
-  count              = var.enable_avnm ? 1 : 0
-  name               = "rc-${var.prefix}-spokes"
-  network_manager_id = azurerm_network_manager.this[0].id
-  description        = "Centralized UDRs for spokes"
-}
-
-resource "azurerm_network_manager_routing_rule_collection" "spokes" {
-  count                         = var.enable_avnm ? 1 : 0
-  name                          = "rrc-${var.prefix}-spokes"
-  routing_configuration_id      = azurerm_network_manager_routing_configuration.spokes[0].id
-  network_group_ids             = [azurerm_network_manager_network_group.spokes[0].id]
-  bgp_route_propagation_enabled = false
-}
-
-resource "azurerm_network_manager_routing_rule" "default_to_firewall" {
-  count              = var.enable_avnm ? 1 : 0
-  name               = "route-default-to-firewall"
-  rule_collection_id = azurerm_network_manager_routing_rule_collection.spokes[0].id
-  description        = "Force all spoke egress traffic through hub firewall"
-
-  destination {
-    type    = "AddressPrefix"
-    address = "0.0.0.0/0"
-  }
-
-  next_hop {
-    type    = "VirtualAppliance"
-    address = azurerm_firewall.this.ip_configuration[0].private_ip_address
-  }
 }
 

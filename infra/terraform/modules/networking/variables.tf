@@ -27,24 +27,6 @@ variable "enable_azure_services_forwarding_rule" {
   default     = false
 }
 
-variable "enable_avnm" {
-  description = "Enable Azure Virtual Network Manager (AVNM) connectivity, security admin, and routing configurations."
-  type        = bool
-  default     = false
-}
-
-variable "avnm_management_group_name" {
-  description = "Management group name for AVNM scope (e.g., mg-acme-landing-zones)."
-  type        = string
-  default     = ""
-}
-
-variable "avnm_spoke_vnet_ids" {
-  description = "List of spoke virtual network resource IDs to onboard into AVNM spoke network group."
-  type        = list(string)
-  default     = []
-}
-
 variable "tags" {
   description = "Resource tags"
   type        = map(string)

@@ -47,12 +47,6 @@ enable_management_groups = false
 # Optional root management group display name
 # management_group_display_name = "acme Landing Zone"
 
-# Azure Virtual Network Manager (AVNM) in networking subscription
-enable_avnm = false
-avnm_management_group_name = "mg-acme-landing-zones"
-# Spoke VNet IDs to include in AVNM spoke network group
-avnm_spoke_vnet_ids = []
-
 # ==============================================================================
 # Azure Configuration
 # ==============================================================================

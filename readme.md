@@ -18,6 +18,7 @@ Welcome to your enterprise-grade Azure Landing Zone implementation. This documen
 
 3. **Deploy**: 
    ```bash
+    az login
    cd infra/terraform
    cp terraform.tfvars.example terraform.tfvars
    # Edit terraform.tfvars with your subscription IDs (leave empty to skip components):
@@ -29,6 +30,8 @@ Welcome to your enterprise-grade Azure Landing Zone implementation. This documen
    terraform plan
    terraform apply
    ```
+
+    For CI/CD with workload identity, pass `-backend-config="use_oidc=true"` to `terraform init`.
 
 ---
 

@@ -9,6 +9,7 @@ output "policy_assignment_ids" {
     inherit_env_tag      = azurerm_management_group_policy_assignment.inherit_env_tag.id
     inherit_team_tag     = azurerm_management_group_policy_assignment.inherit_team_tag.id
     activity_log_diag    = azurerm_management_group_policy_assignment.activity_log_diag.id
+    private_link_usage   = { for scope, assignment in azurerm_subscription_policy_assignment.private_link_usage : scope => assignment.id }
   }
 }
 
@@ -23,5 +24,6 @@ output "policy_assignment_names" {
     inherit_env_tag      = azurerm_management_group_policy_assignment.inherit_env_tag.name
     inherit_team_tag     = azurerm_management_group_policy_assignment.inherit_team_tag.name
     activity_log_diag    = azurerm_management_group_policy_assignment.activity_log_diag.name
+    private_link_usage   = { for scope, assignment in azurerm_subscription_policy_assignment.private_link_usage : scope => assignment.name }
   }
 }

@@ -56,24 +56,6 @@ variable "policy_management_group_name" {
   default     = "mg-acme-landing-zones"
 }
 
-variable "enable_avnm" {
-  description = "Enable Azure Virtual Network Manager in networking subscription."
-  type        = bool
-  default     = false
-}
-
-variable "avnm_management_group_name" {
-  description = "Management group name to scope AVNM configurations (e.g., mg-acme-landing-zones)."
-  type        = string
-  default     = "mg-acme-landing-zones"
-}
-
-variable "avnm_spoke_vnet_ids" {
-  description = "List of spoke VNet resource IDs for AVNM hub-spoke and routing configurations."
-  type        = list(string)
-  default     = []
-}
-
 variable "location" {
   description = "Primary Azure region"
   type        = string

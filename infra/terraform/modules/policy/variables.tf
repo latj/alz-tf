@@ -14,3 +14,9 @@ variable "management_group_name" {
   description = "Management group name used as policy assignment scope (e.g., mg-acme-landing-zones)"
   type        = string
 }
+
+variable "landing_zone_subscription_ids" {
+  description = "Landing-zone subscription IDs where built-in private endpoint governance initiative should be assigned."
+  type        = list(string)
+  default     = []
+}

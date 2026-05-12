@@ -51,12 +51,6 @@ enable_management_groups = true
 # Azure policy assignment scope (management group)
 policy_management_group_name = "mg-acme-landing-zones"
 
-# Azure Virtual Network Manager (AVNM)
-enable_avnm                = false
-avnm_management_group_name = "mg-acme-landing-zones"
-# Add spoke VNet resource IDs here to onboard them into AVNM hub-spoke, security, and routing configs.
-avnm_spoke_vnet_ids = []
-
 # ==============================================================================
 # Azure Configuration
 # ==============================================================================
